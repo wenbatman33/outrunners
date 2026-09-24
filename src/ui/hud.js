@@ -124,9 +124,12 @@ export function drawHUD(ctx, W, H, race, o = {}) {
     const x = e.x * W;
     const y = e.y * H;
     const s = e.s;
-    const label = race.trans === 'MT' ? (race.gear ? 'HIGH' : 'LOW') : 'AT ' + race.atGear;
-    panel(ctx, x - 78 * s, y - 13 * s, 78 * s, 26 * s, { r: 6, fill: 'rgba(0,0,0,0.55)', border: e.color });
-    txt(ctx, label, x - 39 * s, y + 1, { size: 11 * s, align: 'center', color: e.color });
+    const label = race.trans === 'MT' ? `${race.gear}/${race.gears}` : 'AT ' + race.atGear;
+    // 手排到達極限轉速時閃爍提示升檔
+    const flash = race.overRev && Math.floor((o.t || 0) * 8) % 2 === 0;
+    panel(ctx, x - 78 * s, y - 13 * s, 78 * s, 26 * s, { r: 6, fill: flash ? 'rgba(200,20,20,0.85)' : 'rgba(0,0,0,0.55)', border: e.color });
+    txt(ctx, race.trans === 'MT' ? 'GEAR ' + label : label, x - 39 * s, y + 1, { size: (race.trans === 'MT' ? 9 : 11) * s, align: 'center', color: flash ? '#ffffff' : e.color });
+    if (race.overRev) txt(ctx, 'SHIFT UP!', x - 39 * s, y - 24 * s, { size: 8 * s, align: 'center', color: '#ff5a3a' });
     reg('gear', x - 78 * s, y - 13 * s, 78 * s, 26 * s);
   }
   // 電台
@@ -189,7 +192,7 @@ export function drawTouch(ctx, W, H, race, input) {
     const c = T[id];
     const x = c.x * W;
     const y = c.y * H;
-    const r = c.r * H;
+    const r = c.r * Math.min(W, H);
     const down = input.isTouchDown(id);
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
@@ -198,7 +201,14 @@ export function drawTouch(ctx, W, H, race, input) {
     ctx.lineWidth = 3;
     ctx.strokeStyle = color;
     ctx.stroke();
-    txt(ctx, label, x, y + (sub ? -5 : 1), { size: Math.max(9, r * 0.36), align: 'center', color, shadow: false });
+    const symbol = /^[▲▼◀▶]$/.test(label);
+    txt(ctx, label, x, y + (sub ? -r * 0.12 : 1), {
+      size: symbol ? Math.max(14, r * 0.62) : Math.max(9, r * 0.36),
+      align: 'center',
+      color,
+      shadow: false,
+      font: symbol ? 'Arial, "PingFang TC", sans-serif' : undefined,
+    });
     if (sub) txt(ctx, sub, x, y + r * 0.35, { size: Math.max(6, r * 0.2), align: 'center', color: '#fff', shadow: false });
     regions.push({ id, x, y, r });
     hudRects['touch_' + id] = { x: x - r, y: y - r, w: r * 2, h: r * 2 };
@@ -209,7 +219,10 @@ export function drawTouch(ctx, W, H, race, input) {
   }
   draw('gas', 'GAS', '#4aff6a');
   draw('brake', 'BRK', '#ff5a5a');
-  if (race.trans === 'MT') draw('gear', race.gear ? 'HI' : 'LO', '#ffd21a', 'SHIFT');
+  if (race.trans === 'MT') {
+    draw('gearUp', '▲', '#ffd21a', String(race.gear));
+    draw('gearDown', '▼', '#ffd21a');
+  }
   draw('pause', '❚❚', '#ffffff');
   return regions;
 }

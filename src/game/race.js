@@ -32,6 +32,11 @@ function getSmokeTex() {
   return smokeTex;
 }
 
+// 各檔最高速（佔極速比例）：檔數越多，每檔間距越細
+export function gearLimit(g, N) {
+  return g >= N ? 1.03 : Math.pow(g / N, 0.8);
+}
+
 export class Race {
   /**
    * @param {object} world {scene, env, chunks, camera}
@@ -73,8 +78,9 @@ export class Race {
     this.v = 0;
     this.lv = 0; // 側向速度
     this.yaw = 0;
-    this.gear = 0; // MT: 0=LOW 1=HIGH；AT: 自動 1~4
-    this.atGear = 1;
+    this.gears = this.car.gears || 2; // 依車型：手排 2~6 段
+    this.gear = 1; // 手排目前檔位 1~N
+    this.atGear = 1; // 自動變速目前檔位
     this.rpm = 0;
     this.skid = 0;
     this.offroad = 0;
@@ -458,26 +464,25 @@ export class Race {
     const vn = this.v / vmax;
     const accBase = 8 + car.accel * 7;
     let a = 0;
+    const N = this.gears;
+    const g = this.trans === 'AT' ? this.atGear : this.gear;
+    const hi = gearLimit(g, N);
+    const lo = g > 1 ? gearLimit(g - 1, N) : 0;
     if (this.trans === 'AT') {
+      // 自動變速：平順但效率略低
       a = accBase * (1 - Math.pow(Math.min(1, vn), 1.7));
-      // 自動換檔（引擎聲用）
-      const g = vn < 0.22 ? 1 : vn < 0.45 ? 2 : vn < 0.7 ? 3 : 4;
-      if (g !== this.atGear) {
-        this.atGear = g;
-      }
-      const lo = [0, 0, 0.22, 0.45, 0.7][g];
-      const hi = [0, 0.22, 0.45, 0.7, 1.02][g];
-      this.rpm = 0.25 + ((vn - lo) / (hi - lo)) * 0.72;
+      if (g < N && vn > hi * 0.96) this.atGear++;
+      else if (g > 1 && vn < lo * 0.8) this.atGear--;
     } else {
-      if (this.gear === 0) {
-        const lim = 0.58;
-        a = vn < lim ? accBase * 1.12 * (1 - Math.pow(vn / lim, 2) * 0.55) : -3;
-        this.rpm = 0.2 + (vn / lim) * 0.8;
-      } else {
-        a = accBase * (0.28 + 0.72 * clamp(vn / 0.42, 0, 1)) * (1 - Math.pow(Math.min(1, vn), 1.7));
-        this.rpm = 0.2 + vn * 0.8;
-      }
+      // 手排：低檔加速強、每檔有極限轉速；高檔低速時會拖檔無力
+      const m = 1.35 - (0.3 * (g - 1)) / Math.max(1, N - 1);
+      if (vn >= hi) a = -3; // 斷油
+      else if (g < N) a = accBase * m * (1 - Math.pow(vn / hi, 2) * 0.55);
+      else a = accBase * m * (1 - Math.pow(Math.min(1, vn), 1.7));
+      if (g > 1 && vn < lo * 0.55) a *= 0.45 + 0.55 * (vn / (lo * 0.55));
     }
+    this.rpm = 0.18 + (vn / hi) * 0.82;
+    this.overRev = this.trans === 'MT' && vn >= hi * 0.985 && g < N;
     this.rpm = clamp(this.rpm, 0.1, 1.05);
     if (this.recoverBoost > 0) {
       this.recoverBoost -= dt;
@@ -986,7 +991,8 @@ export class Race {
     const tz = _p2.z;
     this.path.pointAt(this.s + T.lookAhead, this.x * 0.7, _p2);
     const lx = _p2.x;
-    const ly = _p2.y + T.lookHeight;
+    // 直式畫面：鏡頭略往下看，減少天空、讓道路佔更多畫面
+    const ly = _p2.y + T.lookHeight - (cam.aspect < 1 ? 2.6 : 0);
     const lz = _p2.z;
     if (!this.camInit) {
       this.camPos.set(tx, ty, tz);
@@ -1007,7 +1013,8 @@ export class Race {
     const sh = this.shake * 0.25;
     cam.position.set(this.camPos.x + (Math.random() - 0.5) * sh, this.camPos.y + (Math.random() - 0.5) * sh, this.camPos.z + (Math.random() - 0.5) * sh);
     cam.lookAt(this.camLook);
-    const fov = T.fov + spd * T.speedFovKick;
+    // 直式畫面水平視野窄，垂直 FOV 加大讓前方道路看得更多
+    const fov = (cam.aspect < 1 ? T.fov * 1.35 : T.fov) + spd * T.speedFovKick;
     if (Math.abs(cam.fov - fov) > 0.05) {
       cam.fov = lerp(cam.fov, fov, dt * 3);
       cam.updateProjectionMatrix();
@@ -1016,9 +1023,15 @@ export class Race {
   }
 
   // ---------------- 其他 ----------------
-  toggleGear() {
-    if (this.trans !== 'MT') return;
-    this.gear = 1 - this.gear;
+  shiftUp() {
+    if (this.trans !== 'MT' || this.gear >= this.gears) return;
+    this.gear++;
+    audio.sfx('shift');
+  }
+
+  shiftDown() {
+    if (this.trans !== 'MT' || this.gear <= 1) return;
+    this.gear--;
     audio.sfx('shift');
   }
 

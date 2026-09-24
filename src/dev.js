@@ -1,6 +1,6 @@
 // DEV 微調工具：F2 / ` 或左上角 ⚙ 開啟
 // 功能：拖曳 HUD 與觸控按鈕、即時滑桿、PC/Mobile 版面切換、狀態觸發、匯出 JSON
-import { LAYOUT_PC, LAYOUT_MOBILE, TUNING, VIEW, saveOverrides, resetOverrides, detectView, layout } from './config.js';
+import { LAYOUT_PC, LAYOUT_MOBILE, LAYOUT_PORTRAIT, TUNING, VIEW, saveOverrides, resetOverrides, detectView, layout } from './config.js';
 import { hudRects } from './ui/hud.js';
 import { STAGES } from './data/stages.js';
 
@@ -47,7 +47,7 @@ const HUD_NAMES = {
   time: '時間', score: '分數', stage: '關卡名', rank: '名次', lap: '分段時間', progress: '進度條',
   speed: '速度錶', gear: '檔位', radio: '電台', map: '迷你地圖', message: '中央訊息',
 };
-const TOUCH_NAMES = { left: '左轉', right: '右轉', gas: '油門', brake: '煞車', gear: '換檔', pause: '暫停' };
+const TOUCH_NAMES = { left: '左轉', right: '右轉', gas: '油門', brake: '煞車', gearUp: '升檔', gearDown: '降檔', pause: '暫停' };
 
 export function initDev(api) {
   const panelEl = document.getElementById('dev-panel');
@@ -58,7 +58,7 @@ export function initDev(api) {
   const persist = () => saveOverrides();
 
   function curLayout() {
-    return VIEW.mode === 'mobile' ? LAYOUT_MOBILE : LAYOUT_PC;
+    return layout();
   }
 
   // ---------- DOM 產生 ----------
@@ -223,7 +223,7 @@ export function initDev(api) {
     const ta = el('textarea', { readonly: 'readonly' });
     const exp = el('button', { class: 'primary' }, '💾 匯出 JSON');
     exp.onclick = () => {
-      const json = JSON.stringify({ LAYOUT_PC, LAYOUT_MOBILE, TUNING }, null, 2);
+      const json = JSON.stringify({ LAYOUT_PC, LAYOUT_MOBILE, LAYOUT_PORTRAIT, TUNING }, null, 2);
       ta.value = json;
       try {
         navigator.clipboard.writeText(json);

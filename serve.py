@@ -18,6 +18,7 @@ class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
 class Server(socketserver.ThreadingMixIn, http.server.HTTPServer):
     daemon_threads = True
     allow_reuse_address = True
+    request_queue_size = 128  # 預設只有 5，瀏覽器同時載入多個模組時會被拒絕連線
 
 
 with Server(('', PORT), NoCacheHandler) as httpd:

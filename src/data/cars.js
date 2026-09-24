@@ -1,8 +1,9 @@
-// 8 台可選車輛：top=最高時速(km/h)，其餘能力 0~1
+// 8 台可選車輛：top=最高時速(km/h)，gears=手排段數，其餘能力 0~1
 // accel 加速、handling 轉向、grip 抓地(抗離心)、offroad 路外性能、weight 碰撞重量
 export const CARS = [
   {
     id: 'madpower',
+    gears: 6, // 手排段數（推估資料）
     name: 'MAD POWER',
     top: 296,
     accel: 0.55,
@@ -18,6 +19,7 @@ export const CARS = [
   },
   {
     id: 'badboy',
+    gears: 2, // 手排段數（原版資料）
     name: 'BAD BOY',
     top: 286,
     accel: 0.78,
@@ -33,6 +35,7 @@ export const CARS = [
   },
   {
     id: 'easy',
+    gears: 5, // 手排段數（原版資料）
     name: 'EASY HANDLING',
     top: 272,
     accel: 0.6,
@@ -48,6 +51,7 @@ export const CARS = [
   },
   {
     id: 'smooth',
+    gears: 5, // 手排段數（推估資料）
     name: 'SMOOTH OPERATOR',
     top: 282,
     accel: 0.6,
@@ -63,6 +67,7 @@ export const CARS = [
   },
   {
     id: 'speedbuster',
+    gears: 5, // 手排段數（推估資料）
     name: 'SPEED BUSTER',
     top: 290,
     accel: 0.62,
@@ -78,6 +83,7 @@ export const CARS = [
   },
   {
     id: 'roadmonster',
+    gears: 3, // 手排段數（推估資料）
     name: 'ROAD MONSTER',
     top: 276,
     accel: 0.9,
@@ -93,6 +99,7 @@ export const CARS = [
   },
   {
     id: 'wildchaser',
+    gears: 4, // 手排段數（推估資料）
     name: 'WILD CHASER',
     top: 262,
     accel: 0.8,
@@ -108,6 +115,7 @@ export const CARS = [
   },
   {
     id: 'quickreactor',
+    gears: 4, // 手排段數（推估資料）
     name: 'QUICK REACTOR',
     top: 268,
     accel: 0.95,

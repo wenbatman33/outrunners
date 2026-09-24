@@ -12,9 +12,11 @@ const KEYMAP = {
   KeyS: 'down',
   KeyZ: 'gas',
   KeyX: 'brake',
-  Space: 'gear',
+  Space: 'gear', // 升檔
+  KeyE: 'gear',
   ShiftLeft: 'gear',
-  ShiftRight: 'gear',
+  KeyQ: 'gearDown', // 降檔
+  ControlLeft: 'gearDown',
   Enter: 'confirm',
   NumpadEnter: 'confirm',
   Escape: 'pause',
@@ -149,7 +151,7 @@ class Input {
       const b = (i) => (gp.buttons[i] ? gp.buttons[i].value : 0);
       padGas = Math.max(b(7), b(0));
       padBrake = Math.max(b(6), b(2));
-      const map = { 12: 'up', 13: 'down', 14: 'left', 15: 'right', 0: 'confirm', 1: 'back', 9: 'pause', 3: 'gear', 5: 'gear', 4: 'radio' };
+      const map = { 12: 'up', 13: 'down', 14: 'left', 15: 'right', 0: 'confirm', 1: 'back', 9: 'pause', 5: 'gear', 4: 'gearDown', 3: 'radio' };
       for (const k in map) {
         const pressed = b(+k) > 0.5;
         if (pressed && !this.padPrev[k]) {
@@ -186,8 +188,10 @@ class Input {
     }
     this.gas = Math.max(k.has('up') || k.has('gas') || ts.gas ? 1 : 0, padGas);
     this.brake = Math.max(k.has('down') || k.has('brake') || ts.brake ? 1 : 0, padBrake);
-    if (ts.gear && !this._gearPrev) this.events.push('gear');
-    this._gearPrev = !!ts.gear;
+    if (ts.gearUp && !this._gearPrev) this.events.push('gear');
+    this._gearPrev = !!ts.gearUp;
+    if (ts.gearDown && !this._gearDownPrev) this.events.push('gearDown');
+    this._gearDownPrev = !!ts.gearDown;
     if (ts.pause && !this._pausePrev) this.events.push('pause');
     this._pausePrev = !!ts.pause;
   }

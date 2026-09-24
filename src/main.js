@@ -207,8 +207,8 @@ function resize() {
   uiCanvas.width = Math.round(w * udpr);
   uiCanvas.height = Math.round(h * udpr);
   // 邏輯座標至少 960x540（直式畫面時改以寬度為準，避免 UI 擠壓）
-  G.scale = Math.min(uiCanvas.width / 960, uiCanvas.height / 540);
-  if (uiCanvas.width >= uiCanvas.height) G.scale = uiCanvas.height / 540;
+  // 橫式以高度 540 為基準；直式以寬度 600 為基準（字與按鈕才不會太小）
+  G.scale = uiCanvas.width >= uiCanvas.height ? uiCanvas.height / 540 : uiCanvas.width / 600;
   G.H = uiCanvas.height / G.scale;
   G.W = uiCanvas.width / G.scale;
 }
@@ -343,7 +343,8 @@ function update(dt) {
       if (ev.includes('confirm')) G.pauseSel === 0 ? togglePause() : retire();
       return;
     }
-    if (ev.includes('gear')) r.toggleGear();
+    if (ev.includes('gear')) r.shiftUp();
+    if (ev.includes('gearDown')) r.shiftDown();
     if (ev.includes('radio')) changeRadio(1);
     if (ev.includes('radioPrev')) changeRadio(-1);
     if (ev.includes('camera')) r.camMode = r.camMode === 1 ? 0 : 1;
@@ -484,7 +485,9 @@ function updateSelect(dt, ev) {
   // 展示間動畫
   show.turn.rotation.y += dt * 0.5;
   const a = Math.sin(G.t * 0.3) * 0.2;
-  show.cam.position.set(Math.sin(a) * 9.5, 2.6, Math.cos(a) * 9.5);
+  // 直式畫面鏡頭拉遠，整台車才放得進畫面
+  const far = show.cam.aspect < 1 ? 1 + (1 - show.cam.aspect) * 1.8 : 1;
+  show.cam.position.set(Math.sin(a) * 9.5 * far, 2.6 * far, Math.cos(a) * 9.5 * far);
   show.cam.lookAt(0, 0.7, 0);
   const car = show.cars[sel.car];
   if (car) for (const w of car.userData.wheels) w.spin.rotation.x -= dt * 2;
@@ -551,10 +554,11 @@ function render() {
       break;
   }
   // 直式提示
-  if (VIEW.isTouch && W < H * 1.05 && s !== 'boot') {
-    panel(ui, W * 0.08, H * 0.42, W * 0.84, 70, { fill: 'rgba(0,0,0,0.75)' });
-    txt(ui, '橫放手機遊玩更佳', W / 2, H * 0.42 + 26, { size: 18, align: 'center', font: 'sans-serif', color: '#ffe23a' });
-    txt(ui, 'ROTATE FOR BEST VIEW', W / 2, H * 0.42 + 52, { size: 9, align: 'center' });
+  if (VIEW.isTouch && W < H * 1.05 && s === 'title') {
+    const hy = H * 0.46;
+    panel(ui, W * 0.12, hy, W * 0.76, 52, { fill: 'rgba(0,0,0,0.55)' });
+    txt(ui, '橫放手機視野更大', W / 2, hy + 19, { size: 16, align: 'center', font: 'sans-serif', color: '#ffe23a' });
+    txt(ui, 'ROTATE FOR WIDER VIEW', W / 2, hy + 40, { size: 8, align: 'center' });
   }
   devApi.drawOverlay(ui, W, H);
 }
@@ -579,7 +583,7 @@ function drawTitle(W, H) {
   // 高分跑馬燈
   const h = G.hiscores[Math.floor(G.t / 2.5) % G.hiscores.length];
   if (h) txt(ui, `HI-SCORE  ${h.name}  ${String(h.score).padStart(8, ' ')}`, W / 2, H * 0.84, { size: 11, align: 'center' });
-  if (!VIEW.isTouch) txt(ui, '← → 轉向   ↑/Z 油門   ↓/X 煞車   SPACE 換檔   M 換電台   C 視角   V 靜音   ESC 暫停   F2 開發工具', W / 2, H * 0.94, { size: 11, align: 'center', font: 'sans-serif', color: '#dde' });
+  if (!VIEW.isTouch) txt(ui, '← → 轉向   ↑/Z 油門   ↓/X 煞車   SPACE/E 升檔  Q 降檔   M 換電台   C 視角   V 靜音   ESC 暫停', W / 2, H * 0.94, { size: 11, align: 'center', font: 'sans-serif', color: '#dde' });
   else txt(ui, '左下：轉向　右下：油門/煞車　右上：暫停', W / 2, H * 0.94, { size: 12, align: 'center', font: 'sans-serif', color: '#dde' });
 }
 
@@ -622,7 +626,7 @@ function drawSelect(W, H) {
       ui.fillStyle = g;
       ui.fillRect(bx, y - 6, bwid * clamp(v, 0.05, 1), 12);
     });
-    txt(ui, `TOP ${car.top} km/h`, px + 12, py + (narrow ? 112 : 138), { size: 9, color: '#ffe23a' });
+    txt(ui, `TOP ${car.top} km/h   MT ${car.gears}-SPEED`, px + 12, py + (narrow ? 112 : 138), { size: 9, color: '#ffe23a' });
     if (!narrow) {
       panel(ui, W - 324, H - 222, 300, 150);
       wrapText(car.desc, W - 310, H - 196, 272, 22, 15);
@@ -638,7 +642,7 @@ function drawSelect(W, H) {
     const cw = Math.min(300, W * 0.42);
     const opts = [
       ['AT', 'AUTOMATIC', '自動排檔：只要踩油門，輕鬆上手'],
-      ['MT', 'MANUAL  LOW / HIGH', '手動 2 段：極速 +5%，需自行換檔（SPACE / SHIFT 鈕）'],
+      ['MT', `MANUAL  ${CARS[sel.car].gears}-SPEED`, `手動 ${CARS[sel.car].gears} 段：極速 +5%，需自行升降檔（${VIEW.isTouch ? '▲▼ 按鈕' : 'SPACE/E 升、Q 降'}）`],
     ];
     opts.forEach(([k, n, d], i) => {
       const x = W / 2 + (i === 0 ? -cw - 10 : 10);
